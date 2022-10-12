@@ -67,6 +67,10 @@ Compare the unsupervised method with 10% labeling, 20% labeling, etc.
 
 **retrain_wo_cl_0.x**: Supervised training on Oxford dataset, supervised retrain on Inhouse dataset with part of the labeled data, no continual learning strategy is implemented.
 
+**contrastive_wo_cl**: Supervised training on Oxford dataset, retrain on Inhouse dataset in contrastive settings, no continual learning strategy is implemented.
+
+**contrastive_wi_cl**: Supervised training on Oxford dataset, retrain on Inhouse dataset in contrastive settings, continual learning strategy is implemented.
+
 | Recall@1 | Oxford | Business | Resident | University |
 |----|---|---|---|---|
 | undate_retrain_wo_cl | 41.0 | 71.9 | 76.2 | 71.6 |
@@ -77,5 +81,12 @@ Compare the unsupervised method with 10% labeling, 20% labeling, etc.
 | retrain_wo_cl_0.25 | 65.8 | 89.7 | 90.7 | 92.4 |
 | retrain_wo_cl_0.1 | 55.3 | 83.9 | 85.0 | 84.4 |
 | retrain_wo_cl_0.01 | 27.3 | 35.3 | 36.4 | 38.5 |
+| contrastive_wo_cl | 44.2 | 75.4 | 77.1 | 77.2 |
+| contrastive_wi_cl | 61.2 | 80.8 | 88.6 | 86.2 |
 
+![total loss](total_loss_60epochs.png)
+![contrastive loss](contrastive_loss_60epochs.png)
+![incremental loss](incremental_loss_60epochs.png)
 
+The results show that training on the In-house dataset with contrastive learning is not useful to place recognition task.
+It is even worse than directly testing on the new dataset with a pre-trained model on Oxford
