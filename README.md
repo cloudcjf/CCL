@@ -90,3 +90,37 @@ Compare the unsupervised method with 10% labeling, 20% labeling, etc.
 
 The results show that training on the In-house dataset with contrastive learning is not useful to place recognition task.
 It is even worse than directly testing on the new dataset with a pre-trained model on Oxford
+
+### Step 3 2022-10-13
+Forget about unsupervised training. We will use poses to divide positive and negative pairs.
+1. Train with the contrastive learning strategy to improve the recall@1
+2. contrastive continual learning to smoothly transfer among different datasets.
+
+**Method**: MinkLoc3D
+**oxford_triplet** : Training on the Oxford training pickle with triplet loss, evaluation on the Oxford and Inhouse evaluation pickles
+
+**inhouse_triplet** : Training on the Inhouse training pickle with triplet loss, margin=0.2, evaluation on the Oxford and Inhouse evaluation pickles
+**inhouse_triplet_0** : Training on the Inhouse training pickle with triplet loss, margin=0, evaluation on the Oxford and Inhouse evaluation pickles
+
+**oxford_contrastive** : Training on the Oxford training pickle with contrastive loss, evaluation on the Oxford and Inhouse evaluation pickles
+
+by temperature=0.04 batch=128, use projection head, loss following radar pr settings
+
+**inhouse_contrastive** : Training on the Inhouse training pickle with contrastive loss, evaluation on the Oxford and Inhouse evaluation pickles
+1.  by temperature=0.03 batch=128
+2.  by temperature=0.04 batch=100, with regularization loss
+3.  by temperature=0.04 batch=128, use projection head, loss following radar pr settings, but there is no big difference between loss version 1 and version 2, which means the prob of negatives maybe be useless
+
+**incremental_contrastive** : Training on the Oxford training pickle with contrastive loss, then train on the Inhouse pickle with contrastive and incremental loss, evaluation on the Oxford and Inhouse evaluation pickles
+
+| Recall@1 | Oxford | Business | Resident | University |
+|----|---|---|---|---|
+| oxford_triplet_provided_ckpt | 93.8 | 82.7 | 81.1 | 86.0 |
+| oxford_triplet | 92.1 | 74.8 | 77.2 | 81.5 |
+| oxford_contrastive | 86.5 | 78.9 | 78.3 | 83.5 |
+| inhouse_triplet | 63.4 | 90.3 | 93.2 | 94.2 |
+| inhouse_triplet_0 | 54.0 | 74.3 | 78.8 | 83.0 |
+| inhouse_contrastive_1 | 47.4 | 89.1 | 91.6 | 89.1 |
+| inhouse_contrastive_2 | 51.0 | 89.1 | 91.5 | 90.8 |
+| inhouse_contrastive_3 | 62.0 | 89.0 | 91.9 | 92.7 |
+| incremental_contrastive | 69.4 | 75.9 | 78.3 | 80.7 |
