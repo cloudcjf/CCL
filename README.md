@@ -89,30 +89,57 @@ We will use poses to divide positive and negative pairs.
 1. Train with the contrastive learning strategy to improve the recall@1
 2. contrastive continual learning to smoothly transfer among different datasets.
 
+#### step1
+there are two contrastive strategies
+1. lightweight version: use negative miners, only 128 negatives
+2. feature bank: train as moco, use ten thousands of negatives
+3. from ablation study, we find t=0.07, m=0.99 is best
+
 **Method**: MinkLoc3D
+
 **oxford_triplet** : Training on the Oxford training pickle with triplet loss, evaluation on the Oxford and Inhouse evaluation pickles
 
 **oxford_contrastive** : Training on the Oxford training pickle with contrastive loss, evaluation on the Oxford and Inhouse evaluation pickles
+by temperature=0.07 batch=128, use projection head
 
-by temperature=0.04 batch=128, use projection head, loss following radar pr settings
+**oxford_contrastive_featurebank** : Training on the Oxford training pickle with contrastive loss and feature bank, evaluation on the Oxford and Inhouse evaluation pickles(m=0.99,t=0.07,k=10000,batch=32, 120epochs, lr=0.001->0.0001->0.00001 [30,90])
 
 **inhouse_triplet** : Training on the Inhouse training pickle with triplet loss, margin=0.2, evaluation on the Oxford and Inhouse evaluation pickles
 
-**inhouse_contrastive_3** : Training on the Inhouse training pickle with contrastive loss, evaluation on the Oxford and Inhouse evaluation pickles
+**inhouse_contrastive_featurebank** : Training on the Inhouse training pickle with contrastive loss and feature bank, evaluation on the Oxford and Inhouse evaluation pickles(m=0.99,t=0.07,k=2000,batch=32)
 
-**inhouse_contrastive_featurebank** : Training on the Inhouse training pickle with contrastive loss and feature bank, evaluation on the Oxford and Inhouse evaluation pickles
+**triplet_incremental** : SA loss and memory
 
+**triplet_wo_incremental** : no SA loss and memory
+
+**contrastive_incremental** : SA loss and memory
+
+**contrastive_wo_incremental** : only memory
+
+**contrastive_wo_incremental_and_memory** : no SA loss and memory
 
 | Recall@1 | Oxford | Business | Resident | University |
 |----|---|---|---|---|
-| oxford_triplet | 92.1 | 74.8 | 77.2 | 81.5 |
-| oxford_contrastive | 86.5 | 78.9 | 78.3 | 83.5 |
+| oxford_triplet_paper | 93.8 | 82.7 | 81.1 | 86.0 |
+| oxford_triplet | 93.0 | 75.9 | 77.6 | 83.3 |
+| oxford_contrastive | 88.3 | 81.6 | 83.0 | 85.3 |
+| oxford_contrastive_featurebank | 91.2 | 84.7 | 84.3 | 88.0 |
 | inhouse_triplet | 63.4 | 90.3 | 93.2 | 94.2 |
-| inhouse_contrastive_3 | 62.0 | 89.0 | 91.9 | 92.7 |
-| inhouse_contrastive_featurebank | 67.0 | 90.2 | 93.1 | 95.1 |
+| inhouse_contrastive_featurebank | 68.9 | 92.3 | 95.1 | 96.3 |
+| triplet_incremental | 90.7 | 93.3 | 95.8 | 96.1 |
+| triplet_wo_incremental | 70.3 | 93.3 | 96.4 | 96.3 |
+| contrastive_incremental | 80.7 | 92.3 | 94.1 | 95.4 |
+| contrastive_wo_incremental | 77.1 | 93.0 | 94.8 | 95.4 |
+| contrastive_wo_incremental_and_memory | 70.6 | 93.0 | 95.4 | 96.7 |
 
 This is the training loss of inhouse_contrastive_featurebank
 ![inhouse_contrastive_featurebank](inhouse.png)
 
 This is the training loss of oxford_contrastive_featurebank
 ![oxford_contrastive_featurebank](oxford.png)
+
+### 2022-11-05
+1. The generalization of contrastive training are much lower than that of triplet learning. 
+2. The current incremental loss seems not so useful
+3. The memory is more useful than incremental loss
+4. if no memory and incremental loss, the recalls are almost same, which infers that the memory and incremental loss is not proper for contrastive learning

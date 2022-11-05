@@ -1,4 +1,5 @@
 import os
+import random
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -9,43 +10,59 @@ from tqdm import tqdm
 from eval.evaluate import evaluate 
 from misc.util import AverageMeter
 from models.model_factory import model_factory
-from datasets.dataset_util import make_dataloader
+from datasets.dataset_util_moco import make_dataloader
+from losses.loss_factory import make_pr_loss, make_inc_loss, make_contrastive_loss
 from torchpack.utils.config import configs 
 
 
 class Trainer(nn.Module):
-    def __init__(self, logger, train_environment):
+    def __init__(self, logger, train_environment, save_dir):
         # Initialise inputs
         super(Trainer, self).__init__()
         self.debug = configs.debug 
         self.logger = logger 
+        self.save_dir = save_dir
         self.epochs = configs.train.optimizer.epochs 
         # Set up meters and stat trackers 
         self.loss_contrastive_meter = AverageMeter()
-        self.alpha = 0.3
-        self.beta = 0.5
+        self.positive_score_meter = AverageMeter()
+        self.negative_score_meter = AverageMeter()
+        # self.alpha = 0.3
+        # self.beta = 0.5
         # moco
-        # self.K = 15000
-        self.K = 5000
+        self.K = 15000
+        # self.K = 2000
         self.m = 0.99
         self.T = 0.07
-
         # Make dataloader
         self.dataloader = make_dataloader(pickle_file = train_environment, memory = None)
 
         # Build model
         assert torch.cuda.is_available, 'CUDA not available.  Make sure CUDA is enabled and available for PyTorch'
-        # pretrained_checkpoint = torch.load("/home/ps/cjf/InCloud/weights/minkloc3d_baseline.pth")
+        # pretrained_checkpoint = torch.load("/home/ps/cjf/InCloud/cjf_results/bank_oxford_fast/final_ckpt.pth")
+        # self.model_q = model_factory(ckpt = pretrained_checkpoint, device = 'cuda')
         self.model_q = model_factory(ckpt = None, device = 'cuda')
         self.model_k = model_factory(ckpt = None, device = 'cuda')
         for param_q, param_k in zip(self.model_q.parameters(), self.model_k.parameters()):
             param_k.data.copy_(param_q.data)
             param_k.requires_grad = False
-        self.register_buffer('queue_pcd', torch.randn(128, self.K))
+        self.register_buffer('queue_pcd', torch.randn(128, len(self.dataloader.dataset.queries)))
         self.queue_pcd = nn.functional.normalize(self.queue_pcd, dim=0).cuda()
-        self.register_buffer("queue_pcd_ptr", torch.zeros(1, dtype=torch.long))
-        self.queue_pcd_index = [-1]*self.K
-        # Make loss functions
+        # self.register_buffer("queue_pcd_ptr", torch.zeros(1, dtype=torch.long))
+        self.queue_pcd_index = set(range(len(self.dataloader.dataset.queries)))
+        # self.updated_key = set()
+        # continual settings
+        # print("loading all embeddings")
+        # print()
+        # for idx, (queries, keys, labels) in enumerate(self.dataloader):
+        #     queries = {x: queries[x].to('cuda') if x!= 'coords' else queries[x] for x in queries}
+        #     with torch.no_grad():  # no gradient to keys
+        #         embeddings, projectors = self.model_q(queries)
+        #         projectors = nn.functional.normalize(projectors, dim=1)
+        #     self._dequeue_and_enqueue_pcd_fast(projectors, labels)
+        # print("finish initialization")
+
+        # make cross entropy loss
         self.criterion = nn.CrossEntropyLoss().cuda()
 
         # Make optimizer 
@@ -107,12 +124,20 @@ class Trainer(nn.Module):
         self.queue_pcd_ptr[0] = ptr
 
 
+    @torch.no_grad()
+    def _dequeue_and_enqueue_pcd_fast(self, keys, labels):
+        self.queue_pcd[:, labels] = keys.T
+        # self.updated_key.update(labels)
+
+
     '''
         reset epoch metrics
     '''
     def before_epoch(self, epoch):
         # Reset meters
         self.loss_contrastive_meter.reset()
+        self.positive_score_meter.reset()
+        self.negative_score_meter.reset()
 
     '''
         1. clear the gradient of weights -------> self.optimizer.zero_grad()
@@ -123,7 +148,10 @@ class Trainer(nn.Module):
         6. empty CUDA cache
         7. update epoch metrics
     '''
+    # version 2
     def training_step(self, queries, keys, labels):
+        # start_ = time.time()
+        # Prepare batch
         queries = {x: queries[x].to('cuda') if x!= 'coords' else queries[x] for x in queries}
         keys = {x: keys[x].to('cuda') if x!= 'coords' else keys[x] for x in keys}
         half_size = int(len(labels)/2)
@@ -136,22 +164,31 @@ class Trainer(nn.Module):
         projectors = nn.functional.normalize(projectors, dim=1)
         with torch.no_grad():  # no gradient to keys
             self._momentum_update_key_encoder()  # update the key encoder
+            # key_projectors = self.model_k(keys)
             _, key_projectors = self.model_k(keys)
             key_projectors = nn.functional.normalize(key_projectors, dim=1)
 
         # compute logits
         # Einstein sum is more intuitive
+        # choose the true negatives cjf 1103
         # positive logits: Nx1
         l_pos_pcd = torch.einsum('nc,nc->n', [projectors, key_projectors]).unsqueeze(-1)
+        # l_pos_pcd = (l_pos_pcd + 1) / 2
         # negative logits: NxK
-        l_neg_pcd = torch.einsum('nc,ck->nk', [projectors, self.queue_pcd.clone().detach()])
-
-        # choose the true negatives
-        for i in range(len(labels)):
-            false_negative_index = [e for e in range(len(self.queue_pcd_index)) if self.queue_pcd_index[e] in self.dataloader.dataset.queries[labels[i]].non_negatives]
-            if len(false_negative_index) > 0:
-                l_neg_pcd[i,false_negative_index] = 0
-
+        # l_neg_pcd = torch.einsum('nc,ck->nk', [projectors, self.queue_pcd.clone().detach()])
+        # l_neg_pcd = (l_neg_pcd + 1) / 2
+        # start = time.time()
+        queue_pcd_clone = self.queue_pcd.clone().detach()
+        negatives_list = []
+        for label in labels:
+            negative_index = random.sample(list(self.queue_pcd_index.difference(set(self.dataloader.dataset.queries[label].non_negatives))), self.K)
+            negatives_list.append(queue_pcd_clone[:,negative_index])
+        negatives_tensor = torch.stack(negatives_list, dim=0)
+        l_neg_pcd = torch.einsum('nc,nck->nk', [projectors, negatives_tensor])
+        # end = time.time()
+        # print("for loop cost: ", end-start)
+        positive_score = torch.mean(l_pos_pcd)
+        negative_score = torch.mean(l_neg_pcd)
         # cjf faster version
         logits_pcd = torch.cat([l_pos_pcd, l_neg_pcd],dim=1)
         logits_pcd /= self.T
@@ -159,23 +196,8 @@ class Trainer(nn.Module):
         loss = self.criterion(logits_pcd, labels_pcd)
         # cjf faster version
 
-        # new loss
-        # logits_pcd = torch.cat([l_pos_pcd, l_neg_pcd],dim=1)
-        # most_similar = torch.max(logits_pcd)
-        # positive_loss = 1 - l_pos_pcd
-        # positive_loss = torch.mean(positive_loss)
-        # l_neg_pcd = torch.where(l_neg_pcd > self.beta, l_neg_pcd, torch.tensor(0.0).cuda())
-        # num_negative = l_neg_pcd.norm(0)
-        # if num_negative > 0:
-        #     negative_loss = torch.sum(l_neg_pcd) / num_negative
-        # else:
-        #     negative_loss = 0
-        # regular_loss = -torch.log((1-most_similar)/2)
-        # loss = positive_loss + negative_loss
-        # new loss
-
         # dequeue and enqueue
-        self._dequeue_and_enqueue_pcd(key_projectors, key_labels)
+        self._dequeue_and_enqueue_pcd_fast(key_projectors, key_labels)
 
         # Backwards
         loss.backward()
@@ -184,25 +206,51 @@ class Trainer(nn.Module):
 
         # Stat tracking
         self.loss_contrastive_meter.update(loss.item())
+        self.positive_score_meter.update(positive_score.item())
+        self.negative_score_meter.update(negative_score.item())
+        # end_ = time.time()
+        # print("train step cost:",end_ - start_)
         return None 
 
 
     # 1. update learning rate
-    # 2. save log data
+    # 2. update batch size
+    # 3. save log data
     def after_epoch(self, epoch):
+        # self.updated_key.clear()
         # Scheduler 
         if self.scheduler is not None:
             self.scheduler.step()
+        for tag, value in self.model_q.named_parameters():
+            tag = tag.replace('.', '/')
+            self.logger.add_histogram(tag, value.data.cpu().numpy(), epoch)
+            self.logger.add_histogram(tag+'/grad', value.grad.data.cpu().numpy(), epoch)
 
         # Tensorboard plotting 
         self.logger.add_scalar(f'Contrastive_Loss_epoch', self.loss_contrastive_meter.avg, epoch)
+        self.logger.add_scalar(f'positive_score_epoch', self.positive_score_meter.avg, epoch)
+        self.logger.add_scalar(f'negative_score_epoch', self.negative_score_meter.avg, epoch)
+
+
+
 
     # for loop on epochs
+        # for loop on iterations of each epoch
     def train(self):
         for epoch in tqdm(range(1, self.epochs + 1)):
             self.before_epoch(epoch)
             for idx, (queries, keys, labels) in enumerate(self.dataloader):
                 self.training_step(queries, keys, labels)
+                if self.debug and idx > 2:
+                    break
+            # Evaluate 
+            if epoch > 5 and epoch % 10 == 0:
+                self.model_q.eval()
+                with torch.no_grad():
+                    eval_stats = evaluate(self.model_q, -1)
+                ckpt = self.model_q.state_dict()
+                torch.save(ckpt, os.path.join(self.save_dir, 'epoch_'+str(epoch)+'.pth'))
+                self.model_q.train()
 
             self.after_epoch(epoch)
             if self.debug and epoch > 2:

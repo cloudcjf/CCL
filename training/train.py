@@ -1,5 +1,5 @@
 import os 
-os.environ["CUDA_VISIBLE_DEVICES"]="5"
+os.environ["CUDA_VISIBLE_DEVICES"]="4"
 import torch 
 import argparse 
 import random 
@@ -7,10 +7,11 @@ import numpy as np
 import itertools 
 
 from torchpack.utils.config import configs 
+from datasets.memory_contrastive import Memory
 
 from eval.evaluate import evaluate 
 from eval.metrics import IncrementalTracker 
-from trainer import Trainer
+from trainer_moco import Trainer
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -26,8 +27,8 @@ if __name__ == '__main__':
     # Get args and configs 
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type = str, default = "config/protocols/2-step.yaml", required = False, help = 'Path to configuration YAML file')
-    # parser.add_argument('--train_environment', type = str, default = "pickles/Oxford/Oxford_train_queries.pickle", required = False, help = 'Path to training environment pickle')
-    parser.add_argument('--train_environment', type = str, default = "pickles/In-house/In-house_train_queries.pickle", required = False, help = 'Path to training environment pickle')
+    parser.add_argument('--train_environment', type = str, default = "pickles/Oxford/Oxford_train_queries.pickle", required = False, help = 'Path to training environment pickle')
+    # parser.add_argument('--train_environment', type = str, default = "pickles/In-house/In-house_train_queries.pickle", required = False, help = 'Path to training environment pickle')
     args, opts = parser.parse_known_args()
     configs.load(args.config, recursive = True)
     configs.update(opts)
@@ -37,13 +38,13 @@ if __name__ == '__main__':
     print(configs)
 
     # Make save directory and logger
-    save_dir = "/home/ps/cjf/InCloud/cjf_results/false_negative"
+    save_dir = "/home/ps/cjf/InCloud/cjf_results/15000_cos"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     logger = SummaryWriter(os.path.join(save_dir, 'tf_logs'))
 
     # Train model
-    trainer = Trainer(logger,args.train_environment)
+    trainer = Trainer(logger,args.train_environment,save_dir)
     trained_model = trainer.train()
 
     # Evaluate 
