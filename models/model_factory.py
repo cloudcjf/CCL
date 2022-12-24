@@ -3,6 +3,7 @@
 
 import models.minkloc as minkloc
 from models.PointNetVlad import PointNetVlad
+from models.LOGG3D import *
 from torchpack.utils.config import configs 
 
 
@@ -26,8 +27,8 @@ def model_factory(ckpt = None, device = 'cuda'):
             feature_transform = True,
             max_pool = False,
             output_dim = configs.model.output_dim)
-    elif configs.model.name == 'LoGG3D':
-        raise NotImplementedError('LoGG3D not currently implemented; will be implemented in a future commit')
+    elif configs.model.name == 'logg3d':
+        model = LOGG3D(output_dim=256)
     else:
         raise NotImplementedError('Model not implemented: {}'.format(configs.model.name))
     if ckpt != None:

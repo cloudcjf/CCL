@@ -223,31 +223,49 @@ class PointNetfeat(nn.Module):
 
         del batchsize, trans, f_trans 
 
-        if not self.max_pool:
+        if not self.max_pool:# if NetVLAD goes here
             return x
-        else:
+        else:# max pooling goes here
             x = self.mp1(x)
             x = x.view(-1, 1024)
             if self.global_feat:
-                return x, trans
+                return x
             else:
                 x = x.view(-1, 1024, 1).repeat(1, 1, self.num_points)
                 return torch.cat([x, pointfeat], 1), trans
+
+
+
+class GeM(nn.Module):
+    def __init__(self, p=3, eps=1e-6):
+        super(GeM,self).__init__()
+        self.p = nn.Parameter(torch.ones(1)*p)
+        self.eps = eps
+
+    def forward(self, x):
+        return self.gem(x, p=self.p, eps=self.eps)
+        
+    def gem(self, x, p=3, eps=1e-6):
+        return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1./p)
 
 
 class PointNetVlad(nn.Module):
     def __init__(self, num_points=2500, global_feat=True, feature_transform=False, max_pool=False, output_dim=256):
         super(PointNetVlad, self).__init__()
         self.point_net = PointNetfeat(num_points=num_points, global_feat=global_feat,
-                                      feature_transform=feature_transform, max_pool=max_pool)
+                                      feature_transform=feature_transform, max_pool=True)
         self.net_vlad = NetVLADLoupe(feature_size=1024, max_samples=num_points, cluster_size=64,
                                      output_dim=output_dim, gating=True, add_batch_norm=True,
                                      is_training=True)
-
+        self.proj = nn.Sequential(
+            nn.Linear(256, 256, bias=False),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Linear(256, 128, bias=True))
     def forward(self, batch):
         assert 'cloud' in batch.keys(), 'Error: Key "Cloud" not in batch keys.  Set model.mink_quantization_size to "None" to avoid!'
         x = batch['cloud'].unsqueeze(1)
-        x = self.point_net(x)
+        x = self.point_net(x)   # [batch, 1024, 4096, 1]
         x = self.net_vlad(x)
-        return x
-
+        projector = self.proj(x)
+        return x, projector

@@ -1,6 +1,8 @@
 import os 
 import torch 
-import torchsparse
+from torchsparse import SparseTensor
+from torchsparse.utils.quantize import sparse_quantize
+from torchsparse.utils.collate import sparse_collate
 import numpy as np 
 from tqdm import tqdm 
 import torch.nn.functional as F
@@ -43,6 +45,39 @@ class EvalDataset:
         pc = self.load_pc(self.set[idx]['query'])
         return pc 
 
+
+def make_sparse_tensor(lidar_pc, voxel_size=0.05, return_points=False):
+    # get rounded coordinates
+    lidar_pc = lidar_pc.numpy()
+    lidar_pc = np.hstack((lidar_pc, np.zeros((len(lidar_pc),1), dtype=np.float32)))
+    coords = np.round(lidar_pc[:, :3] / voxel_size)
+    coords -= coords.min(0, keepdims=1)
+    feats = lidar_pc
+
+    # sparse quantization: filter out duplicate points
+    _, indices = sparse_quantize(coords, return_index=True)
+    coords = coords[indices]
+    feats = feats[indices]
+
+    # construct the sparse tensor
+    inputs = SparseTensor(feats, coords)
+    # inputs = sparse_collate([inputs])
+    # inputs.C = inputs.C.int()
+    if return_points:
+        return inputs , feats
+    else:
+        return inputs
+
+
+def sparcify_and_collate_list(list_data, voxel_size):
+    outputs = []
+    for xyzr in list_data:
+        outputs.append(make_sparse_tensor(xyzr, voxel_size))
+    outputs =  sparse_collate(outputs)
+    outputs.C = outputs.C.int()
+    return outputs
+
+
 def get_eval_dataloader(dataset_dict):
     dataset = EvalDataset(dataset_dict)
 
@@ -58,8 +93,8 @@ def get_eval_dataloader(dataset_dict):
             coords = [ME.utils.sparse_quantize(coordinates=e, quantization_size=configs.model.mink_quantization_size)
                     for e in batch]
             if configs.model.name == 'logg3d':
-                batch = torchsparse.sparse_collate(coords)
-                batch.C = batch.C.int()
+                batch = sparcify_and_collate_list(clouds, configs.model.mink_quantization_size)
+                batch = {'cloud':batch}
             else:
                 coords = ME.utils.batched_coordinates(coords)
                 # Assign a dummy feature equal to 1 to each point
@@ -91,7 +126,7 @@ def get_latent_vectors(model, dataset_dict):
         # embeddings = model(batch)
         embeddings, _, = model(batch)
         embeddings_list += list(embeddings.cpu().numpy())
-        
+
     embeddings_stack = np.vstack(embeddings_list)
     return embeddings_stack
 

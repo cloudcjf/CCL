@@ -7,7 +7,7 @@ import numpy as np
 import itertools 
 
 from torchpack.utils.config import configs 
-from datasets.memory_contrastive import Memory
+from datasets.memory import Memory
 
 from eval.evaluate import evaluate 
 from eval.metrics import IncrementalTracker 
@@ -28,7 +28,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type = str, default = "config/protocols/2-step.yaml", required = False, help = 'Path to configuration YAML file')
     parser.add_argument('--train_environment', type = str, default = "pickles/Oxford/Oxford_train_queries.pickle", required = False, help = 'Path to training environment pickle')
-    # parser.add_argument('--train_environment', type = str, default = "pickles/In-house/In-house_train_queries.pickle", required = False, help = 'Path to training environment pickle')
     args, opts = parser.parse_known_args()
     configs.load(args.config, recursive = True)
     configs.update(opts)
@@ -38,7 +37,7 @@ if __name__ == '__main__':
     print(configs)
 
     # Make save directory and logger
-    save_dir = "/home/ps/cjf/InCloud/cjf_results/15000_cos"
+    save_dir = "/heyufei1/models/ccl/cjf_results/oxford_mink"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     logger = SummaryWriter(os.path.join(save_dir, 'tf_logs'))
@@ -49,7 +48,6 @@ if __name__ == '__main__':
 
     # Evaluate 
     eval_stats = evaluate(trained_model, -1)
-    # TODO Improve printing on eval part of train loop
 
     # Save model
     ckpt = trained_model.state_dict()

@@ -1,4 +1,5 @@
 import os
+# os.environ["CUDA_VISIBLE_DEVICES"]="4"
 from torchpack.utils.config import configs 
 import numpy as np 
 
@@ -20,16 +21,17 @@ def evaluate(model, env_idx):
             for d, q in zip(database_files, query_files):
                 if q != None:
                     env_recall_1.append(eval_multisession(model, d, q)['Recall@1'])
+                    print(env, env_recall_1)
                 else:
                     world_thresh = configs.eval.world_thresh[env]
                     false_pos_thresh = configs.eval.false_pos_thresh[env]
                     time_thresh = configs.eval.time_thresh[env]
                     env_recall_1.append(eval_singlesession(model, d, world_thresh, false_pos_thresh, time_thresh)['Recall@1'])
-            print("env_recall_1: ", env_recall_1)
+                    print(env, env_recall_1)
             env_recall_1 = np.mean(env_recall_1)
             stats[env] = env_recall_1
     print(stats)
-    return stats
+    return stats 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -39,15 +41,13 @@ if __name__ == '__main__':
     configs.load(args.config, recursive = True)
     configs.update(opts)
     print(configs)
-    ckpt = "/home/ps/cjf/InCloud/cjf_results/contrastive_inhouse_debug_0.03/final_ckpt.pth"
-    # ckpt = "/home/ps/cjf/InCloud/cjf_results/triplet_inhouse/final_ckpt.pth"
-    # ckpt = "/home/ps/cjf/InCloud/cjf_results/triplet_0.2/final_ckpt.pth"
+    ckpt = "/heyufei1/models/ccl/cjf_results/oxford_logg3d_max_projector/final_ckpt.pth"
 
     model = model_factory(ckpt = torch.load(ckpt))
     stats = evaluate(model, -1)
-    final = pd.DataFrame(columns = ['Recall@1'])
-    for k in stats:
-        final.loc[k] = [stats[k]]
-    final.loc['Average'] = final.mean(0)
-    print(stats)
-    print(final)
+    # final = pd.DataFrame(columns = ['Recall@1'])
+    # for k in stats:
+    #     final.loc[k] = [stats[k]]
+    # final.loc['Average'] = final.mean(0)
+    # print(stats)
+    # print(final)

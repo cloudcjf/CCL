@@ -4,6 +4,9 @@ import numpy as np
 from tqdm import tqdm 
 from eval.eval_utils import get_latent_vectors
 from torchpack.utils.config import configs 
+# cjf visualization
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 
 
 def euclidean_distance(query, database):
@@ -16,6 +19,13 @@ def eval_singlesession(model, database, world_thresh, false_pos_thresh, time_thr
     # Get embeddings, timestamps,coords and start time 
     database_dict = pickle.load(open(database, 'rb'))
     embeddings = get_latent_vectors(model, database_dict) # N x D, in chronological order
+    # add t-SNE visualization
+    # print(len(embeddings))
+    # RS = 20221213
+    # digits_proj = TSNE(random_state=RS,n_components=2).fit_transform(embeddings[2:])
+    # plt.scatter(digits_proj[:,0],digits_proj[:,1],s=1)
+    # plt.savefig('contrastive.png', dpi=120)
+    
     timestamps = [database_dict[k]['timestamp'] for k in range(len(database_dict.keys()))]
     coords = np.array([[database_dict[k]['easting'],database_dict[k]['northing']] for k in range(len(database_dict.keys()))])
     start_time = timestamps[0]

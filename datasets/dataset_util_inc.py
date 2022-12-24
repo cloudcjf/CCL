@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 import MinkowskiEngine as ME
 
 from datasets.oxford import OxfordDataset, TrainTransform, TrainSetTransform
-from datasets.samplers import BatchSampler
+from datasets.samplers_inc import BatchSampler
 import random 
 
 from torchpack.utils.config import configs 
@@ -70,30 +70,31 @@ def make_collate_fn(dataset: OxfordDataset, mink_quantization_size=None):
             deal with the data in batch
             it will return the data to ——> enumerate(self.dataloader)
         """
-        # print("call collate function")
-        # Constructs a batch object
         clouds = [e[0] for e in data_list]
         labels = [e[1] for e in data_list]
         batch = torch.stack(clouds, dim=0)       # Produces (batch_size, n_points, 3) tensor
         if dataset.set_transform is not None:
             # Apply the same transformation on all dataset elements
             batch = dataset.set_transform(batch)
-        anchor_size = int(len(labels) / 2)
+        anchor_size = int(len(labels)/4)
         anchors = batch[:anchor_size,:,:]
         positives = batch[anchor_size:2*anchor_size,:,:]
         queries = torch.cat((anchors, positives), 0)
         keys = torch.cat((positives, anchors), 0)
+        memories = batch[2*anchor_size:,:,:]
 
         if configs.model.name == 'PointNetVlad':
-            # Not a MinkowskiEngine based model
             queries = {'cloud': queries}
             keys = {'cloud': keys}
+            memories = {'cloud': memories}
         elif configs.model.name == 'logg3d':
             # TODO modified for moco
             queries = sparcify_and_collate_list(queries, mink_quantization_size)
             keys = sparcify_and_collate_list(keys, mink_quantization_size)
+            memories = sparcify_and_collate_list(memories, mink_quantization_size)
             queries = {'cloud': queries}
             keys = {'cloud': keys}
+            memories = {'cloud': memories}
         else:
             coords_queries = [ME.utils.sparse_quantize(coordinates=e, quantization_size=mink_quantization_size)
                     for e in queries]
@@ -101,12 +102,17 @@ def make_collate_fn(dataset: OxfordDataset, mink_quantization_size=None):
             coords_keys = [ME.utils.sparse_quantize(coordinates=e, quantization_size=mink_quantization_size)
                     for e in keys]
             coords_keys = ME.utils.batched_coordinates(coords_keys)
+            coords_memories = [ME.utils.sparse_quantize(coordinates=e, quantization_size=mink_quantization_size)
+                    for e in memories]
+            coords_memories = ME.utils.batched_coordinates(coords_memories)
             feats_queries = torch.ones((coords_queries.shape[0], 1), dtype=torch.float32)
             feats_keys = torch.ones((coords_keys.shape[0], 1), dtype=torch.float32)
+            feats_memories = torch.ones((coords_memories.shape[0], 1), dtype=torch.float32)
             queries = {'coords': coords_queries, 'features': feats_queries, 'cloud': queries}
             keys = {'coords': coords_keys, 'features': feats_keys, 'cloud': keys}
+            memories = {'coords': coords_memories, 'features': feats_memories, 'cloud': memories}
         # index order of queies is same as labels
-        return queries, keys, labels
+        return queries, keys, memories, labels
 
     return collate_fn
 

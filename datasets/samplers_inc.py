@@ -114,7 +114,8 @@ class BatchSampler(Sampler):
                     for i in range(0,len(current_batch),2):
                         anchors_temp.append(current_batch[i])
                         positives_temp.append(current_batch[i+1])
-                    new_batch = anchors_temp + positives_temp
+                    memory_batch = random.sample(self.memory_ndx, len(current_batch))
+                    new_batch = anchors_temp + positives_temp + memory_batch
                     self.batch_idx.append(new_batch)
                     current_batch = []
                     if (self.max_batches is not None) and (len(self.batch_idx) >= self.max_batches):

@@ -1,13 +1,13 @@
-save_dir: cjf_results/incloud
-# save_dir: cjf_results/InCloud_MinkLoc3D_2step
 debug: false
 data: 
   num_points: 4096
-  dataset_folder: /home/ps/cjf/nas/Datasets
+  dataset_folder: /home/ps/cjf/nas/Datasets/benchmark_datasets
   aug_mode: 1
-  pin_memory: false
+  pin_memory: True
 model: 
-  name: MinkFPN_GeM
+  # name: logg3d
+  name: PointNetVlad
+  # name: MinkFPN_GeM
   mink_quantization_size: 0.01
   planes: [32,64,64]
   layers: [1,1,1]
@@ -19,32 +19,32 @@ model:
 train: 
   num_workers: 4
   batch_size: 32
-  batch_size_limit: 256
-  batch_expansion_rate: 2
-  batch_expansion_th: 0.5
-  memory:
-    num_pairs: 256
   optimizer: 
-    lr: 0.001
-    weight_decay: 0.001
-    scheduler: 'CosineAnnealingLR'
-    # scheduler: 'MultiStepLR'
-    scheduler_milestones: [30]
-    epochs: 60
-    min_lr: 0.00012
+  name: 'SGD'
+  momentum: 0.9
+  weight_decay: 0.001
+  scheduler: 'MultiStepLR'
+  moco:
+    lr: 0.03
+    scheduler_milestones: [120,160]
+    epochs: 200
+  continual:
+    lr: 0.003
+    memory:
+      num_pairs: 256
+      scheduler_milestones: []
+      epochs: 60
+
   loss: 
-    pr:
-      name: BatchHardTripletMarginLoss
-      margin: 0.2
     incremental:
-      # name: 'LwF'
-      name: 'StructureAware'
-      weight: 110
+      name: 'KD'
+      weight: 1
       margin: 0.0002
       adjust_weight: True 
       gamma: 10
+      
 eval:
-  batch_size: 256
+  batch_size: 32
   thresh_min: 0
   thresh_max: 1
   num_thresholds: 1000

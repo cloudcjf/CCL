@@ -7,7 +7,7 @@ from sklearn.neighbors import KDTree
 # cjf visualization
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+# from mpl_toolkits.mplot3d import Axes3D
  
 def eval_multisession(model, database_sets, query_sets):
     recall = np.zeros(25)
@@ -23,25 +23,25 @@ def eval_multisession(model, database_sets, query_sets):
     model.eval()
     database_sets = pickle.load(open(database_sets, 'rb'))
     query_sets = pickle.load(open(query_sets, 'rb'))
-
-    for run in tqdm(database_sets, disable=False, desc = 'Getting database embeddings'):
+    for run in database_sets:
+    # for run in tqdm(database_sets, disable=False, desc = 'Getting database embeddings'):
         database_embeddings.append(get_latent_vectors(model, run))
     # add by cjf visualization of embeddings via t-SNE
     # embeddings_new = np.zeros((2,256))
     # for i in range(len(database_embeddings)):
     #     embeddings_new = np.concatenate((embeddings_new,database_embeddings[i]),axis=0)
-    # RS = 20221019
+    # print(len(embeddings_new))
+    # RS = 20221213
     # digits_proj = TSNE(random_state=RS,n_components=2).fit_transform(embeddings_new[2:])
-    # # fig = plt.figure()
-    # # ax = Axes3D(fig)
-    # # ax.scatter(digits_proj[:,0],digits_proj[:,1],digits_proj[:,2])
     # plt.scatter(digits_proj[:,0],digits_proj[:,1],s=1)
     # plt.savefig('contrastive.png', dpi=120)
 
-    for run in tqdm(query_sets, disable=False, desc = 'Getting query embeddings'):
+    for run in query_sets:
+    # for run in tqdm(query_sets, disable=False, desc = 'Getting query embeddings'):
         query_embeddings.append(get_latent_vectors(model, run))
 
-    for i in tqdm(range(len(query_sets)), desc = 'Getting Recall'):
+    for i in range(len(query_sets)):
+    # for i in tqdm(range(len(query_sets)), desc = 'Getting Recall'):
         for j in range(len(query_sets)):
             if i == j:
                 continue 
@@ -57,7 +57,7 @@ def eval_multisession(model, database_sets, query_sets):
                 all_correct.append(x)
             for x in incorrect:
                 all_incorrect.append(x)
-    
+
     ave_recall = recall / count
     ave_recall_1 = ave_recall[0]
     average_similarity = np.mean(similarity)
