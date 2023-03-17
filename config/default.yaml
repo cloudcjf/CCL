@@ -1,4 +1,5 @@
 debug: false
+save_dir: /heyufei1/models/ccl/cjf_results/oxford_mink
 data: 
   num_points: 4096
   dataset_folder: /home/ps/cjf/nas/Datasets/benchmark_datasets
@@ -6,8 +7,8 @@ data:
   pin_memory: True
 model: 
   # name: logg3d
-  name: PointNetVlad
-  # name: MinkFPN_GeM
+  # name: PointNetVlad
+  name: MinkFPN_GeM
   mink_quantization_size: 0.01
   planes: [32,64,64]
   layers: [1,1,1]
@@ -19,30 +20,26 @@ model:
 train: 
   num_workers: 4
   batch_size: 32
+  batch_size_limit: 256
+  batch_expansion_rate: 2
+
+  memory:
+    num_pairs: 256
   optimizer: 
-  name: 'SGD'
-  momentum: 0.9
-  weight_decay: 0.001
-  scheduler: 'MultiStepLR'
-  moco:
+    name: 'SGD'
+    momentum: 0.9
     lr: 0.03
+    weight_decay: 0.001
+    scheduler: 'MultiStepLR'
     scheduler_milestones: [120,160]
     epochs: 200
-  continual:
-    lr: 0.003
-    memory:
-      num_pairs: 256
-      scheduler_milestones: []
-      epochs: 60
-
   loss: 
     incremental:
       name: 'KD'
-      weight: 1
+      weight: 1 # KD default 1
       margin: 0.0002
       adjust_weight: True 
-      gamma: 10
-      
+      gamma: 10 # default 10
 eval:
   batch_size: 32
   thresh_min: 0

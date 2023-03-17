@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm 
 from eval.eval_utils import get_latent_vectors
 from torchpack.utils.config import configs 
-# cjf visualization
+# visualization
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 

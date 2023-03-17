@@ -1,9 +1,12 @@
+# Author: Jiafeng Cui
+# cjfacl@gmail.com
+
 import os
+import time
 import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F 
-import time
 import numpy as np 
 from tqdm import tqdm 
 from eval.evaluate import evaluate 
@@ -29,7 +32,7 @@ class TrainerIncremental(nn.Module):
         self.loss_inc_meter = AverageMeter()
         self.positive_score_meter = AverageMeter()
         self.negative_score_meter = AverageMeter()
-        # moco
+        # contrastive
         self.K = 1000
         self.m = 0.99
         self.T = 0.07
@@ -146,7 +149,7 @@ class TrainerIncremental(nn.Module):
             negative_index = random.sample(list(self.queue_pcd_index.difference(set(self.dataloader.dataset.queries[labels[index]].non_negatives))), self.K)
             negatives_list.append(queue_pcd_clone[:,negative_index])
         negatives_tensor = torch.stack(negatives_list, dim=0)
-        # egative logits: NxK
+        # negative logits: NxK
         l_neg_pcd = torch.einsum('nc,nck->nk', [projectors, negatives_tensor])
         positive_score = torch.mean(l_pos_pcd)
         negative_score = torch.mean(l_neg_pcd)
@@ -175,18 +178,15 @@ class TrainerIncremental(nn.Module):
         self.negative_score_meter.update(negative_score.item())
 
 
-
-    # 1. update learning rate
-    # 2. update batch size
-    # 3. save log data
+    '''
+        # 1. update learning rate
+        # 2. update batch size
+        # 3. save log data
+    '''
     def after_epoch(self, epoch):
         # Scheduler 
         if self.scheduler is not None:
             self.scheduler.step()
-        # for tag, value in self.model_new_q.named_parameters():
-        #     tag = tag.replace('.', '/')
-        #     self.logger.add_histogram(tag, value.data.cpu().numpy(), epoch)
-        #     self.logger.add_histogram(tag+'/grad', value.grad.data.cpu().numpy(), epoch)
 
         # Tensorboard plotting
         self.logger.add_scalar(f'Step_{self.env_idx}/Total_Loss_epoch', self.loss_total_meter.avg, epoch)

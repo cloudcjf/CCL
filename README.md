@@ -1,1 +1,1 @@
-# Continual Contrastive Learning for LiDAR Place Recognition
+# CCL: Continual Contrastive Learning for LiDAR Place Recognition

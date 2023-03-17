@@ -1,21 +1,20 @@
 # Author: Jacek Komorowski
 # Warsaw University of Technology
+# Modified: Jiafeng Cui
 
-import numpy as np
-import torch
-from torch.utils.data import DataLoader
-import MinkowskiEngine as ME
-
-from datasets.oxford import OxfordDataset, TrainTransform, TrainSetTransform
-from datasets.samplers_inc import BatchSampler
 import random 
-
+import torch
+import numpy as np
+import MinkowskiEngine as ME
+from torch.utils.data import DataLoader
 from torchpack.utils.config import configs 
-
 from torchsparse import SparseTensor
 from torchsparse.utils.quantize import sparse_quantize
 from torchsparse.utils.collate import sparse_collate
-from torchsparse.utils.collate import sparse_collate_fn
+from datasets.oxford import OxfordDataset, TrainTransform, TrainSetTransform
+from datasets.samplers_inc import BatchSampler
+
+
 def make_sparse_tensor(lidar_pc, voxel_size=0.05, return_points=False):
     # get rounded coordinates
     lidar_pc = lidar_pc.numpy()
@@ -88,7 +87,6 @@ def make_collate_fn(dataset: OxfordDataset, mink_quantization_size=None):
             keys = {'cloud': keys}
             memories = {'cloud': memories}
         elif configs.model.name == 'logg3d':
-            # TODO modified for moco
             queries = sparcify_and_collate_list(queries, mink_quantization_size)
             keys = sparcify_and_collate_list(keys, mink_quantization_size)
             memories = sparcify_and_collate_list(memories, mink_quantization_size)

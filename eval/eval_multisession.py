@@ -4,7 +4,7 @@ from torch import embedding
 from tqdm import tqdm 
 from eval.eval_utils import get_latent_vectors
 from sklearn.neighbors import KDTree
-# cjf visualization
+# visualization
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 # from mpl_toolkits.mplot3d import Axes3D

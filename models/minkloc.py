@@ -1,5 +1,6 @@
 # Author: Jacek Komorowski
 # Warsaw University of Technology
+# Modified: Jiafeng Cui
 
 import torch
 import torch.nn as nn
@@ -65,10 +66,8 @@ class MinkLoc(torch.nn.Module):
         # x is (batch_size, output_dim) tensor
         if self.normalize_embeddings:
             x = F.normalize(x, p = 2, dim = 1)
-        # projection head, [batch_size, 128]
         projector = self.proj(x)
         return x, projector
-        # return x
 
     def print_info(self):
         print('Model class: MinkLoc')

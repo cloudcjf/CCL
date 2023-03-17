@@ -1,10 +1,12 @@
+# Modified: Jiafeng Cui
+# remove SOP module, since it doesn't work on Oxford and In-house datasets
+
 import os
 import sys
 import torch
 import torch.nn as nn
 import numpy as np
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
-from models.SOP import *
 from models.netvlad import *
 from models.spvnas.model_zoo import spvcnn
 

@@ -1,17 +1,14 @@
 import os 
-os.environ["CUDA_VISIBLE_DEVICES"]="4"
-import torch 
+import torch
 import argparse 
 import random 
 import numpy as np 
 import itertools 
 
 from torchpack.utils.config import configs 
-from datasets.memory import Memory
 
 from eval.evaluate import evaluate 
-from eval.metrics import IncrementalTracker 
-from trainer_moco import Trainer
+from trainer_contrastive import Trainer
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -37,13 +34,12 @@ if __name__ == '__main__':
     print(configs)
 
     # Make save directory and logger
-    save_dir = "/heyufei1/models/ccl/cjf_results/oxford_mink"
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-    logger = SummaryWriter(os.path.join(save_dir, 'tf_logs'))
+    if not os.path.exists(configs.save_dir):
+        os.makedirs(configs.save_dir)
+    logger = SummaryWriter(os.path.join(configs.save_dir, 'tf_logs'))
 
     # Train model
-    trainer = Trainer(logger,args.train_environment,save_dir)
+    trainer = Trainer(logger,args.train_environment,configs.save_dir)
     trained_model = trainer.train()
 
     # Evaluate 
@@ -51,4 +47,4 @@ if __name__ == '__main__':
 
     # Save model
     ckpt = trained_model.state_dict()
-    torch.save(ckpt, os.path.join(save_dir, 'final_ckpt.pth'))
+    torch.save(ckpt, os.path.join(configs.save_dir, 'final_ckpt.pth'))

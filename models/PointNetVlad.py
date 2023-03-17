@@ -1,3 +1,5 @@
+# Modified: Jiafeng Cui
+
 from __future__ import print_function
 import torch
 import torch.nn as nn
@@ -235,20 +237,6 @@ class PointNetfeat(nn.Module):
                 return torch.cat([x, pointfeat], 1), trans
 
 
-
-class GeM(nn.Module):
-    def __init__(self, p=3, eps=1e-6):
-        super(GeM,self).__init__()
-        self.p = nn.Parameter(torch.ones(1)*p)
-        self.eps = eps
-
-    def forward(self, x):
-        return self.gem(x, p=self.p, eps=self.eps)
-        
-    def gem(self, x, p=3, eps=1e-6):
-        return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1./p)
-
-
 class PointNetVlad(nn.Module):
     def __init__(self, num_points=2500, global_feat=True, feature_transform=False, max_pool=False, output_dim=256):
         super(PointNetVlad, self).__init__()
@@ -262,6 +250,7 @@ class PointNetVlad(nn.Module):
             nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Linear(256, 128, bias=True))
+
     def forward(self, batch):
         assert 'cloud' in batch.keys(), 'Error: Key "Cloud" not in batch keys.  Set model.mink_quantization_size to "None" to avoid!'
         x = batch['cloud'].unsqueeze(1)

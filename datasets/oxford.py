@@ -1,11 +1,11 @@
 # Author: Jacek Komorowski
 # Warsaw University of Technology
+# Modified: Jiafeng Cui
 
 # Dataset wrapper for Oxford laser scans dataset from PointNetVLAD project
 # For information on dataset see: https://github.com/mikacuy/pointnetvlad
 
 import os
-import pickle
 import numpy as np
 import math
 from scipy.linalg import expm, norm
@@ -13,10 +13,7 @@ import random
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
-import tqdm
 from misc.util import load_pickle
-from torchpack.utils.config import configs 
-import itertools 
 
 class OxfordDataset(Dataset):
     """

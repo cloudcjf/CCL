@@ -1,5 +1,4 @@
 import os 
-os.environ["CUDA_VISIBLE_DEVICES"]="4"
 import torch 
 import argparse 
 import random 
@@ -40,19 +39,18 @@ if __name__ == '__main__':
     print(configs)
 
     # Make save directory and logger
-    save_dir = "/heyufei1/models/ccl/cjf_results/mink_projector_4steps"
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-    if not os.path.exists(os.path.join(save_dir, 'models')):
-        os.makedirs(os.path.join(save_dir, 'models'))
-    logger = SummaryWriter(os.path.join(save_dir, 'tf_logs'))
+    if not os.path.exists(configs.save_dir):
+        os.makedirs(configs.save_dir)
+    if not os.path.exists(os.path.join(configs.save_dir, 'models')):
+        os.makedirs(os.path.join(configs.save_dir, 'models'))
+    logger = SummaryWriter(os.path.join(configs.save_dir, 'tf_logs'))
 
     # Load and save initial checkpoint
     print('Loading Initial Checkpoint: ', end = '')
     assert os.path.exists(args.initial_ckpt), f'Initial Checkpoint at {args.initial_ckpt} should not be none'
     # the trained model in the last step
     old_ckpt = torch.load(args.initial_ckpt)
-    torch.save(old_ckpt, os.path.join(save_dir, 'models', f'env_0.pth'))
+    torch.save(old_ckpt, os.path.join(configs.save_dir, 'models', f'env_0.pth'))
     print('Done')
 
     print('Loading Memory: ', end = '')
@@ -91,12 +89,12 @@ if __name__ == '__main__':
 
         # Save model
         old_ckpt = new_model.state_dict()
-        torch.save(old_ckpt, os.path.join(save_dir, 'models', f'env_{env_idx + 1}.pth'))
+        torch.save(old_ckpt, os.path.join(configs.save_dir, 'models', f'env_{env_idx + 1}.pth'))
 
         # Update Memory 
         memory.update_memory(env, env_idx)
 
     # Print and save final results
-    torch.save(old_ckpt, os.path.join(save_dir, 'models', 'final_ckpt.pth'))
+    torch.save(old_ckpt, os.path.join(configs.save_dir, 'models', 'final_ckpt.pth'))
     results_final = metrics.get_results()
-    results_final.to_csv(os.path.join(save_dir, 'results.csv'))
+    results_final.to_csv(os.path.join(configs.save_dir, 'results.csv'))

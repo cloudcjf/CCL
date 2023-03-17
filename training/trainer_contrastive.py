@@ -1,9 +1,12 @@
+# Author: Jiafeng Cui
+# cjfacl@gmail.com
+
 import os
+import time
 import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F 
-import time
 import numpy as np 
 from tqdm import tqdm 
 from eval.evaluate import evaluate 
@@ -25,8 +28,9 @@ class Trainer(nn.Module):
         self.loss_contrastive_meter = AverageMeter()
         self.positive_score_meter = AverageMeter()
         self.negative_score_meter = AverageMeter()
-        # moco
+        # contrastive
         self.K = 10000
+        # self.K = 1000
         self.m = 0.99
         self.T = 0.07
         # Make dataloader
@@ -120,7 +124,6 @@ class Trainer(nn.Module):
 
         # compute logits
         # Einstein sum is more intuitive
-        # positive logits: Nx1
         l_pos_pcd = torch.einsum('nc,nc->n', [projectors, key_projectors]).unsqueeze(-1)
         queue_pcd_clone = self.queue_pcd.clone().detach()
         negatives_list = []
@@ -149,18 +152,15 @@ class Trainer(nn.Module):
         self.negative_score_meter.update(negative_score.item())
         return None 
 
-
-    # 1. update learning rate
-    # 2. update batch size
-    # 3. save log data
+    '''
+        1. update learning rate
+        2. update batch size
+        3. save log data
+    '''
     def after_epoch(self, epoch):
         # Scheduler 
         if self.scheduler is not None:
             self.scheduler.step()
-        # for tag, value in self.model_q.named_parameters():
-        #     tag = tag.replace('.', '/')
-        #     self.logger.add_histogram(tag, value.data.cpu().numpy(), epoch)
-        #     self.logger.add_histogram(tag+'/grad', value.grad.data.cpu().numpy(), epoch)
 
         # Tensorboard plotting 
         self.logger.add_scalar(f'Contrastive_Loss_epoch', self.loss_contrastive_meter.avg, epoch)
