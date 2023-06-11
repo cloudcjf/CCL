@@ -2,7 +2,7 @@
 
 
 ## Publication
-If you use our code and benchmark in your academic work, please cite the corresponding [paper](https://www.ipb.uni-bonn.de/pdfs/chen2021ral-iros.pdf):
+If you use our code and benchmark in your academic work, please cite the corresponding [paper](https://arxiv.org/pdf/2303.13952.pdf):
     
     @article{cui2023ccl,
 		title={{CCL: Continual Contrastive Learning for LiDAR Place Recognition}},
